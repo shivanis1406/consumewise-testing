@@ -4,6 +4,7 @@ import json, os
 import requests, time
 from data_extractor import extract_data, find_product, get_product
 from nutrient_analyzer import analyze_nutrients
+from rda import find_nutrition
 
 #Used the @st.cache_resource decorator on this function. 
 #This Streamlit decorator ensures that the function is only executed once and its result (the OpenAI client) is cached. 
@@ -35,7 +36,41 @@ def get_product_list(product_name_by_user, data_extractor_url):
     response = find_product(product_name_by_user)
     return response
 
-def find_product_type(product_info_from_db):
+def rda_analysis(product_info_from_db_nutritionalInformation, product_info_from_db_servingSize):
+    data_for_rda_analysis = {'nutritionPerServing' : {}, 'userServingSize' : None}
+    nutrient_name_list = ['energy', 'protein', 'carbohydrates', 'addedSugars', 'dietaryFiber', 'totalFat', 'saturatedFat', 'monounsaturatedFat', 'polyunsaturatedFat', 'transFat', 'sodium']
+
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": f"You will be given nutritional information of a food product. Find values of {', '.join(nutrient_name_list)} in the user-defined format"},
+            {"role": "user", "content": 
+             "Nutritional content of food product is " + json.dumps(product_info_from_db_nutritionalInformation) + """. Generate output in this JSON format 
+            {'energy': <value>,
+            'protein': <value>,
+            'carbohydrates': <value>,
+            'addedSugars': <value>,
+            'dietaryFiber': <value>,
+            'totalFat': <value>,
+            'saturatedFat': <value>,
+            'monounsaturatedFat': <value>,
+            'polyunsaturatedFat': <value>,
+            'transFat': <value>,
+            'sodium': <value>,
+            'servingSize': <Serving size of the provided nutrition value>} """}
+        ]
+    )
+
+    data_for_rda_analysis_part_1 = completion.choices[0].message.content
+    print(f"data_for_rda_analysis_part_1 : {data_for_rda_analysis_part_1}")
+
+    data_for_rda_analysis = {}
+    data_for_rda_analysis.update({'nutritionPerServing' : data_for_rda_analysis_part_1.replace("```", "").replace("json", "")})
+    data_for_rda_analysis.update({'userServingSize' : product_info_from_db_servingSize})
+    
+    return data_for_rda_analysis
+
+def find_product_nutrients(product_info_from_db):
     #GET Response: {'_id': '6714f0487a0e96d7aae2e839',
     #'brandName': 'Parle', 'claims': ['This product does not contain gold'],
     #'fssaiLicenseNumbers': [10013022002253],
@@ -56,21 +91,36 @@ def find_product_type(product_info_from_db):
     #'servingsPerPack': 3.98,
     #'shelfLife': '7 months from packaging'}
 
+    ###rda###
+    #nutrition_data = {
+    #'energy': 250,
+    #'protein': 10,
+    #'carbohydrates': 30,
+    #'addedSugars': 5,
+    #'dietaryFiber': 3,
+    #'totalFat': 10,
+    #'saturatedFat': 3,
+    #'monounsaturatedFat': 2,
+    #'polyunsaturatedFat': 1,
+    #'transFat': 0,
+    #'sodium': 200,
+    #'servingSize': 100  # Serving size of the provided nutrition values
+    #}
 
     product_type = None
-    calories = -1
-    sugar = -1
-    total_sugar = -1
-    added_sugar = -1
-    salt = -1
-    serving_size = -1
-    
+    calories = None
+    sugar = None
+    total_sugar = None
+    added_sugar = None
+    salt = None
+    serving_size = None
+
     if product_info_from_db["servingSize"]["unit"] == "g":
         product_type = "solid"
     elif product_info_from_db["servingSize"]["unit"] == "ml":
         product_type = "liquid"
     serving_size = product_info_from_db["servingSize"]["quantity"]
-    
+
     for item in product_info_from_db["nutritionalInformation"]:
         if 'energy' in item['name'].lower():
             calories = item['values'][0]['value']
@@ -82,11 +132,13 @@ def find_product_type(product_info_from_db):
             sugar = item['values'][0]['value']
 
     #How to get Salt?
-    if added_sugar > 0 and sugar == -1:
+    if added_sugar is not None and added_sugar > 0 and sugar is None:
         sugar = added_sugar
-    elif total_sugar > 0 and added_sugar == -1 and sugar == -1:
+    elif total_sugar is not None and total_sugar > 0 and added_sugar is None and sugar is None:
         sugar = total_sugar
+
     return product_type, calories, sugar, salt, serving_size
+    
 # Initialize assistants and vector stores
 # Function to initialize vector stores and assistants
 @st.cache_resource
@@ -321,14 +373,16 @@ def analyze_claims(claims, ingredients, product_name, assistant_id):
     
     return claims_analysis_str
 
-def generate_final_analysis(brand_name, product_name, processing_level, harmful_ingredient_analysis, claims_analysis, system_prompt):
+def generate_final_analysis(brand_name, product_name, nutrient_analysis, nutrient_analysis_rda, processing_level, harmful_ingredient_analysis, claims_analysis, system_prompt):
     global debug_mode, client
     system_prompt_orig = """You are provided with a detailed analysis of a food product. Your task is to generate actionable insights to help the user decide whether to consume the product, at what frequency, and identify any potential harms or benefits. Consider the context of consumption to ensure the advice is personalized and practical.
 
 Use the following criteria to generate your response:
 
 1. **Nutrition Analysis:**
+- How much do sugar, calories, or salt exceed the threshold limit?
 - How processed is the product?
+- How much of the Recommended Dietary Allowance (RDA) does the product provide for each nutrient?
 
 2. **Harmful Ingredients:**
 - Identify any harmful or questionable ingredients.
@@ -352,6 +406,10 @@ Additionally, consider the following while generating insights:
 
     user_prompt = f"""
 Product Name: {brand_name} {product_name}
+
+Nutrition Analysis :
+{nutrient_analysis}
+{nutrient_analysis_rda}
 
 Processing Level:
 {processing_level}
@@ -385,16 +443,27 @@ def analyze_product(product_info_raw, system_prompt):
         product_name = product_info_from_db.get("productName", "")
         ingredients_list = [ingredient["name"] for ingredient in product_info_from_db.get("ingredients", [])]
         claims_list = product_info_from_db.get("claims", [])
+        nutritional_information = product_info_from_db['nutritionalInformation']
+        serving_size = product_info_from_db["servingSize"]["quantity"]
 
-        if len(ingredients_list) > 0:
+        if nutritional_information:
             product_type, calories, sugar, salt, serving_size = find_product_type(product_info_from_db)
             nutrient_analysis = analyze_nutrients(product_type, calories, sugar, salt, serving_size)
+            print(f"DEBUG ! nutrient analysis is {nutrient_analysis}")
+            
+            nutrient_analysis_rda_data = rda_analysis(nutritional_information, serving_size)
+            print(f"DEBUG ! Data for RDA nutrient analysis is {nutrient_analysis_rda_data}")
+            nutrient_analysis_rda = find_nutrition(nutrient_analysis_rda_data)
+            print(f"DEBUG ! RDA nutrient analysis is {nutrient_analysis_rda}")
+            
+        if len(ingredients_list) > 0:    
             processing_level = analyze_processing_level(ingredients_list, brand_name, product_name, assistant1.id) if ingredients_list else ""
             harmful_ingredient_analysis = analyze_harmful_ingredients(ingredients_list, brand_name, product_name, assistant2.id) if ingredients_list else ""
+        
         if len(claims_list) > 0:                    
             claims_analysis = analyze_claims(claims_list, ingredients_list, product_name, assistant3.id) if claims_list else ""
                 
-        final_analysis = generate_final_analysis(brand_name,product_name,processing_level,harmful_ingredient_analysis,claims_analysis, system_prompt)
+        final_analysis = generate_final_analysis(brand_name, product_name, nutrient_analysis, nutrient_analysis_rda, processing_level, harmful_ingredient_analysis, claims_analysis, system_prompt)
         return final_analysis
     else:
         return "I'm sorry, product information could not be extracted from the url."    
@@ -532,11 +601,12 @@ class ProductSelector:
                         st.session_state.messages.append({"role": "assistant", "content": msg})
 
                         # Loop through session state keys and delete all except the key_to_keep
-                        keys_to_keep = ["system_prompt", "messages"]
+                        keys_to_keep = ["system_prompt", "messages", "welcome_msg"]
                         keys_to_delete = [key for key in st.session_state.keys() if key not in keys_to_keep]
                     
                         for key in keys_to_delete:
                             del st.session_state[key]
+                        st.session_state.welcome_msg = "What product would you like me to analyze next?"
                     else:
                         st.session_state.awaiting_selection = False
                         st.session_state.messages.append(
@@ -642,11 +712,12 @@ def main():
             if response == "Next Product":
                 SessionState.initialize()  # Reset states for next product
                 #st.session_state.welcome_msg = "What is the next product you would like me to analyze today?"
-                keys_to_keep = ["system_prompt", "messages"]
+                keys_to_keep = ["system_prompt", "messages", "welcome_msg"]
                 keys_to_delete = [key for key in st.session_state.keys() if key not in keys_to_keep]
                     
                 for key in keys_to_delete:
                     del st.session_state[key]
+                st.session_state.welcome_msg = "What product would you like me to analyze next?"
                 st.rerun()
                 
             elif response:  # Only add response if it's not None
