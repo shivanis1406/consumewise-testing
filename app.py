@@ -67,7 +67,7 @@ def find_product_type(product_info_from_db):
     
     if product_info_from_db["servingSize"]["unit"] == "g":
         product_type = "solid"
-    elif product_info_from_db["servingSize"]["unit"] == "ml"
+    elif product_info_from_db["servingSize"]["unit"] == "ml":
         product_type = "liquid"
     serving_size = product_info_from_db["servingSize"]["quantity"]
     
