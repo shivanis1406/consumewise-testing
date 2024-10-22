@@ -3,6 +3,7 @@ from openai import OpenAI
 import json, os
 import requests, time
 from data_extractor import extract_data, find_product, get_product
+from nutrient_analyzer import analyze_nutrients
 
 #Used the @st.cache_resource decorator on this function. 
 #This Streamlit decorator ensures that the function is only executed once and its result (the OpenAI client) is cached. 
@@ -23,66 +24,69 @@ debug_mode, client = get_openai_client()
 data_extractor_url = get_backend_urls()
 
 def extract_data_from_product_image(image_links, data_extractor_url):
-    #Send product label image url to data extractor
-    #url = data_extractor_url + "extract"
-    #data = {
-    #    "image_links": image_links
-    #}
-    #try:
-    #    response = requests.post(url, json=data)
-    #    if response.status_code == 200 or response.status_code == 201:
-    #        print("POST Response:", response.json())  # Assuming JSON response
-    #        return response.json()
-    #    else:
-    #        print(f"POST Request failed with status code: {response.status_code}")
-    #        return {}
-    #except requests.exceptions.RequestException as e:
-    #    print(f"Error occurred: {e}")
-    #    return {}
-    
     response = extract_data(image_links)
     return response
 
 def get_product_data_from_db(product_name, data_extractor_url):
-    #Extract data for a product by calling data extractor's API : https://data-extractor-3cn8or2tc-sonikas-projects-9936eaad.vercel.app/
-    #url = data_extractor_url + "product"
-    #params = {"name": product_name}
-    
-    #try:
-    #    response = requests.get(url, params = params)
-    #    # Check if the request was successful
-    #    if response.status_code == 200:
-    #        print("GET Response:", response.json())  # Assuming the response is JSON
-    #        return response.json()
-    #    else:
-    #        print(f"GET Request failed with status code: {response.status_code}")
-    #        return {}
-    #except requests.exceptions.RequestException as e:
-    #    print(f"Error occurred: {e}")
-    #    return {}
     response = get_product(product_name)
     return response
 
 def get_product_list(product_name_by_user, data_extractor_url):
-    #url = data_extractor_url + "find_product"
-    #params = {"name": product_name_by_user}
-    
-    #try:
-    #    response = requests.get(url, params = params)
-    #    # Check if the request was successful
-    #    if response.status_code == 200:
-    #        print("GET Response:", response.json())  # Assuming the response is JSON
-    #        return response.json()
-    #    else:
-    #        print(f"GET Request failed with status code: {response.status_code}")
-    #        return {}
-    #except requests.exceptions.RequestException as e:
-    #    print(f"Error occurred: {e}")
-    #    return {}
-    
     response = find_product(product_name_by_user)
     return response
 
+def find_product_type(product_info_from_db):
+    #GET Response: {'_id': '6714f0487a0e96d7aae2e839',
+    #'brandName': 'Parle', 'claims': ['This product does not contain gold'],
+    #'fssaiLicenseNumbers': [10013022002253],
+    #'ingredients': [{'metadata': '', 'name': 'Refined Wheat Flour (Maida)', 'percent': '63%'}, {'metadata': '', 'name': 'Sugar', 'percent': ''}, {'metadata': '', 'name': 'Refined Palm Oil', 'percent': ''}, {'metadata': '(Glucose, Levulose)', 'name': 'Invert Sugar Syrup', 'percent': ''}, {'metadata': 'I', 'name': 'Sugar Citric Acid', 'percent': ''}, {'metadata': '', 'name': 'Milk Solids', 'percent': '1%'}, {'metadata': '', 'name': 'Iodised Salt', 'percent': ''}, {'metadata': '503(I), 500 (I)', 'name': 'Raising Agents', 'percent': ''}, {'metadata': '1101 (i)', 'name': 'Flour Treatment Agent', 'percent': ''}, {'metadata': 'Diacetyl Tartaric and Fatty Acid Esters of Glycerol (of Vegetable Origin)', 'name': 'Emulsifier', 'percent': ''}, {'metadata': 'Vanilla', 'name': 'Artificial Flavouring Substances', 'percent': ''}],
+    
+    #'nutritionalInformation': [{'name': 'Energy', 'unit': 'kcal', 'values': [{'base': 'per 100 g','value': 462}]},
+    #{'name': 'Protein', 'unit': 'g', 'values': [{'base': 'per 100 g', 'value': 6.7}]},
+    #{'name': 'Carbohydrate', 'unit': 'g', 'values': [{'base': 'per 100 g', 'value': 76.0}, {'base': 'of which sugars', 'value': 26.9}]},
+    #{'name': 'Fat', 'unit': 'g', 'values': [{'base': 'per 100 g', 'value': 14.6}, {'base': 'Saturated Fat', 'value': 6.8}, {'base': 'Trans Fat', 'value': 0}]},
+    #{'name': 'Total Sugars', 'unit': 'g', 'values': [{'base': 'per 100 g', 'value': 27.7}]},
+    #{'name': 'Added Sugars', 'unit': 'g', 'values': [{'base': 'per 100 g', 'value': 26.9}]},
+    #{'name': 'Cholesterol', 'unit': 'mg', 'values': [{'base': 'per 100 g', 'value': 0}]},
+    #{'name': 'Sodium', 'unit': 'mg', 'values': [{'base': 'per 100 g', 'value': 281}]}],
+    
+    #'packagingSize': {'quantity': 82, 'unit': 'g'},
+    #'productName': 'Parle-G Gold Biscuits',
+    #'servingSize': {'quantity': 18.8, 'unit': 'g'},
+    #'servingsPerPack': 3.98,
+    #'shelfLife': '7 months from packaging'}
+
+
+    product_type = None
+    calories = -1
+    sugar = -1
+    total_sugar = -1
+    added_sugar = -1
+    salt = -1
+    serving_size = -1
+    
+    if product_info_from_db["servingSize"]["unit"] == "g":
+        product_type = "solid"
+    elif product_info_from_db["servingSize"]["unit"] == "ml"
+        product_type = "liquid"
+    serving_size = product_info_from_db["servingSize"]["quantity"]
+    
+    for item in product_info_from_db["nutritionalInformation"]:
+        if 'energy' in item['name'].lower():
+            calories = item['values'][0]['value']
+        if 'total sugar' in item['name'].lower():
+            total_sugar = item['values'][0]['value']
+        if 'added sugar' in item['name'].lower():
+            added_sugar = item['values'][0]['value']
+        if 'sugar' in item['name'].lower() and 'added sugar' not in item['name'].lower() and 'total sugar' not in item['name'].lower():
+            sugar = item['values'][0]['value']
+
+    #How to get Salt?
+    if added_sugar > 0 and sugar == -1:
+        sugar = added_sugar
+    elif total_sugar > 0 and added_sugar == -1 and sugar == -1:
+        sugar = total_sugar
+    return product_type, calories, sugar, salt, serving_size
 # Initialize assistants and vector stores
 # Function to initialize vector stores and assistants
 @st.cache_resource
@@ -383,6 +387,8 @@ def analyze_product(product_info_raw, system_prompt):
         claims_list = product_info_from_db.get("claims", [])
 
         if len(ingredients_list) > 0:
+            product_type, calories, sugar, salt, serving_size = find_product_type(product_info_from_db)
+            nutrient_analysis = analyze_nutrients(product_type, calories, sugar, salt, serving_size)
             processing_level = analyze_processing_level(ingredients_list, brand_name, product_name, assistant1.id) if ingredients_list else ""
             harmful_ingredient_analysis = analyze_harmful_ingredients(ingredients_list, brand_name, product_name, assistant2.id) if ingredients_list else ""
         if len(claims_list) > 0:                    
