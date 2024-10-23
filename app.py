@@ -477,36 +477,55 @@ The output must be in JSON format as follows:
     
     return claims_analysis_str
 
-def generate_final_analysis(brand_name, product_name, nutritional_level, processing_level, harmful_ingredient_analysis, claims_analysis, system_prompt):
+def generate_final_analysis(brand_name, product_name, nutritional_level, processing_level, harmful_ingredient_analysis, claims_analysis):
     global debug_mode, client
-    system_prompt_orig = """You are provided with a detailed analysis of a food product. Your task is to generate actionable insights to help the user decide whether to consume the product, at what frequency, and identify any potential harms or benefits. Consider the context of consumption to ensure the advice is personalized and practical.
+    system_prompt = """You are provided with a detailed analysis of a food product. Your task is to generate actionable insights to help the user decide whether to consume the product, at what frequency, and identify any potential harms or benefits. 
+Consider the context of consumption to ensure the advice is personalized and practical. 
 
-Use the following criteria to generate your response:
+Use the following criteria to generate your response: 
+1.⁠ ⁠Nutrition Analysis: 
+--How much do sugar, calories, or salt exceed the threshold limit?
+•⁠  ⁠How much of the Recommended Dietary Allowance (RDA) does the product provide for each nutrient?
+•⁠  ⁠How processed is the product?
+2.⁠ ⁠Harmful Ingredients: 
+•⁠  ⁠Identify any harmful or questionable ingredients. 
+3.⁠ ⁠Misleading Claims: 
+•⁠  ⁠Are there any misleading claims made by the brand? 
 
-1. **Nutrition Analysis:**
-- How much do sugar, calories, or salt exceed the threshold limit?
-- How processed is the product?
-- How much of the Recommended Dietary Allowance (RDA) does the product provide for each nutrient?
+""""""""""""""""While generating your actionable insight, think in the following manner:"""""""""""""""" 
 
-2. **Harmful Ingredients:**
-- Identify any harmful or questionable ingredients.
+Consumption Context:   What is the function of that product in the user's life - caffine? sugar rush? part of a meal? for protein intake? 
+For example- diet coke may be being had for caffeine, so without stating the obvious, caffeine is bad, but if you really need it consider the other adverse effects of this as well! 
+While doing your analysis, consider these things:
+•⁠  ⁠Is the product being consumed for health reasons or as a treat? 
+•⁠  ⁠Could the consumer be overlooking hidden harms? Use the misleading claims criteria here and check if the consumer is having it thinking its healthier. 
+•⁠  ⁠If the product is something they could consume daily, should they? 
+•⁠  ⁠If they are consuming it daily, what potential harm are they not noticing? 
+•⁠  ⁠If the product is intended for health purposes, are there concerns the user might miss? 
+- You could also consider things like how active they are generally or otherwise how well balanced is their meal intake while providing your insight. 
 
-3. **Misleading Claims:**
-- Are there any misleading claims made by the brand?
 
-Additionally, consider the following while generating insights:
+Output: 
+•⁠  ⁠Recommend whether the product should be consumed or avoided. Specify by how much  do sugar, calories, or salt exceed the threshold limit?
+-Recommend whether the product is suitable for regular consumption or should be limited, considering healthier choices when applicable.
+•⁠  ⁠Whether its had as a daily nutritional meal, is it a snack, travel snack, hyper health reason like increased protein intake. 
+You also provide the recommendation considering other lifestyle habbits - how well rounded are their meal, how active they are, 
+•⁠  ⁠Highlight any risks or benefits at that level of consumption. 
 
-1. **Consumption Context:**
-- Is the product being consumed for health reasons or as a treat?
-- Could the consumer be overlooking hidden harms?
-- If the product is something they could consume daily, should they?
-- If they are consuming it daily, what potential harm are they not noticing?
-- If the product is intended for health purposes, are there concerns the user might miss?
+Keep the output very short, concise & factual. 
 
-**Output:**
-- Recommend whether the product should be consumed or avoided.
-- If recommended, specify the appropriate frequency and intended functionality (e.g., treat vs. health).
-- Highlight any risks or benefits at that level of consumption."""
+Follow this format: 
+1.⁠ ⁠Recommendation: This will be the practical actionable insight you provide  highlighting the most relevant point on which your analysis is based or the highest risk or benefit. 
+
+2. Why - Here you provide the reasoning behind your take - the risks or benefits you noticed basis which you have given your recommendation. 
+2.⁠ ⁠Risk Analysis: 
+1. Nutrition: Provide the contextual nutrition analysis based on user's input
+2: Ingredients Analysis : Describe the benefits (if any) and harms (if any) of all the ingredients with a detailed explanation
+3. Processing Level - Explain how processed is the food product 
+4. Claims (if any): Is the claim valid or misleading giving detailed explanation
+
+
+Be very short, concise and precise and scientific. Give actable insights & recommendations."""
 
     user_prompt = f"""
 Product Name: {brand_name} {product_name}
@@ -537,7 +556,7 @@ Claims Analysis:
     return completion.choices[0].message.content
 
 
-def analyze_product(product_info_raw, system_prompt):
+def analyze_product(product_info_raw):
     global assistant1, assistant2, assistant3
     
     if product_info_raw != "{}":
@@ -571,7 +590,7 @@ def analyze_product(product_info_raw, system_prompt):
         if len(claims_list) > 0:                    
             claims_analysis = analyze_claims(claims_list, ingredients_list, assistant3.id) if claims_list else ""
                 
-        final_analysis = generate_final_analysis(brand_name, product_name, nutritional_level, processing_level, harmful_ingredient_analysis, claims_analysis, system_prompt)
+        final_analysis = generate_final_analysis(brand_name, product_name, nutritional_level, processing_level, harmful_ingredient_analysis, claims_analysis)
         return final_analysis
     else:
         return "I'm sorry, product information could not be extracted from the url."    
@@ -581,7 +600,7 @@ def analyze_product(product_info_raw, system_prompt):
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 
-def chatbot_response(image_urls_str, product_name_by_user, data_extractor_url, system_prompt, extract_info = True):
+def chatbot_response(image_urls_str, product_name_by_user, data_extractor_url, extract_info = True):
     # Process the user input and generate a response
     processing_level = ""
     harmful_ingredient_analysis = ""
@@ -604,7 +623,7 @@ def chatbot_response(image_urls_str, product_name_by_user, data_extractor_url, s
                 product_info_raw = get_product_data_from_db(product_name_by_user, data_extractor_url)
                 print(f"DEBUG product_info_raw from name: {product_info_raw}")
                 if 'error' not in json.loads(product_info_raw).keys():
-                    final_analysis = analyze_product(product_info_raw, system_prompt)
+                    final_analysis = analyze_product(product_info_raw)
                     return [], final_analysis
                 else:
                     return [], f"Product information could not be extracted from our database because of {json.loads(product_info_raw)['error']}"
@@ -625,7 +644,7 @@ def chatbot_response(image_urls_str, product_name_by_user, data_extractor_url, s
             product_info_raw = extract_data_from_product_image(image_urls, data_extractor_url)
             print(f"DEBUG product_info_raw from image : {product_info_raw}")
             if 'error' not in json.loads(product_info_raw).keys():
-                final_analysis = analyze_product(product_info_raw, system_prompt)
+                final_analysis = analyze_product(product_info_raw)
                 return [], final_analysis
             else:
                 return [], f"Product information could not be extracted from the image because of {json.loads(product_info_raw)['error']}"
@@ -646,7 +665,6 @@ class SessionState:
             "welcome_shown": False,
             "yes_no_choice": None,
             "welcome_msg": "Welcome to ConsumeWise! What product would you like me to analyze today?",
-            "system_prompt": "",
             "similar_products": [],
             "awaiting_selection": False,
             "current_user_input": "",
@@ -656,28 +674,6 @@ class SessionState:
         for key, value in initial_states.items():
             if key not in st.session_state:
                 st.session_state[key] = value
-
-class SystemPromptManager:
-    """Manages the system prompt input and related functionality"""
-    @staticmethod
-    def render_sidebar():
-        st.sidebar.header("System Prompt")
-        system_prompt = st.sidebar.text_area(
-            "Enter your system prompt here (required):",
-            value=st.session_state.system_prompt,
-            height=150,
-            key="system_prompt_input"
-        )
-        
-        if st.sidebar.button("Submit Prompt"):
-            if system_prompt.strip():
-                st.session_state.system_prompt = system_prompt
-                SessionState.initialize()  # Reset all states
-                st.rerun()
-            else:
-                st.sidebar.error("Please enter a valid system prompt.")
-        
-        return system_prompt.strip()
 
 class ProductSelector:
     """Handles product selection logic"""
@@ -704,12 +700,11 @@ class ProductSelector:
                         st.session_state.product_selected = True
                         st.session_state.awaiting_selection = False
                         st.session_state.selected_product = choice
-                        _, msg = chatbot_response("", choice, data_extractor_url, 
-                                                st.session_state.system_prompt, extract_info=True)
+                        _, msg = chatbot_response("", choice, data_extractor_url, extract_info=True)
                         st.session_state.messages.append({"role": "assistant", "content": msg})
 
                         # Loop through session state keys and delete all except the key_to_keep
-                        keys_to_keep = ["system_prompt", "messages", "welcome_msg"]
+                        keys_to_keep = ["messages", "welcome_msg"]
                         keys_to_delete = [key for key in st.session_state.keys() if key not in keys_to_keep]
                     
                         for key in keys_to_delete:
@@ -744,8 +739,7 @@ class ChatManager:
         st.session_state.product_shared = True
         st.session_state.current_user_input = user_input
         similar_products, _ = chatbot_response(
-            "", user_input, data_extractor_url, 
-            st.session_state.system_prompt, extract_info=False
+            "", user_input, data_extractor_url, extract_info=False
         )
         
         if similar_products:
@@ -764,8 +758,7 @@ class ChatManager:
         
         if is_valid_url and st.session_state.product_shared:
             _, msg = chatbot_response(
-                user_input, "", data_extractor_url, 
-                st.session_state.system_prompt, extract_info=True
+                user_input, "", data_extractor_url, extract_info=True
             )
             st.session_state.product_selected = True
             return msg
@@ -778,14 +771,6 @@ def main():
     
     # Display title
     st.title("ConsumeWise - Your Food Product Analysis Assistant")
-    
-    # Handle system prompt
-    system_prompt = SystemPromptManager.render_sidebar()
-    
-    if not system_prompt:
-        st.warning("⚠️ Please enter a system prompt in the sidebar before proceeding.")
-        st.chat_input("Enter your message:", disabled=True)
-        return
     
     # Show welcome message
     if not st.session_state.welcome_shown:
@@ -820,7 +805,7 @@ def main():
             if response == "Next Product":
                 SessionState.initialize()  # Reset states for next product
                 #st.session_state.welcome_msg = "What is the next product you would like me to analyze today?"
-                keys_to_keep = ["system_prompt", "messages", "welcome_msg"]
+                keys_to_keep = ["messages", "welcome_msg"]
                 keys_to_delete = [key for key in st.session_state.keys() if key not in keys_to_keep]
                     
                 for key in keys_to_delete:
