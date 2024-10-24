@@ -617,27 +617,13 @@ Product Name: {product_name}
 Ingredient List: 
 {", ".join(ingredients_list)}
 
-Salt/Sugar/Calories Exceed ICMR Limit?: 
+Do Salt/Sugar/Calories Exceed ICMR Limit?: 
 {nutrient_analysis}
 
-Nutrients Below RDA Limit?: 
+Is nutrient consumption per serving below RDA limit?: 
 {nutrient_analysis_rda}
-
-Nutrient Analysis: 
-{nutritional_level}
-
-Processing Level: 
-{processing_level}
-
-Ingredient Analysis: 
-{harmful_ingredient_analysis}
-
-Claims Analysis: 
-{claims_analysis}
-
-            **Section 2**
 """
-            return debug_information + final_analysis
+            return debug_information + """        **Section 2**        """ + final_analysis
         else:
             return final_analysis
     else:
