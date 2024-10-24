@@ -603,7 +603,7 @@ def analyze_product(product_info_raw):
         
         final_analysis = generate_final_analysis(brand_name, product_name, nutritional_level, processing_level, harmful_ingredient_analysis, claims_analysis)
         if debug_mode:
-            debug_information = """
+            debug_information = f"""
             **Section 1**
             
 Product Name: {brand_name} {product_name}
