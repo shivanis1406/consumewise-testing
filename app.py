@@ -571,6 +571,13 @@ def analyze_product(product_info_raw):
         nutritional_information = product_info_from_db['nutritionalInformation']
         serving_size = product_info_from_db["servingSize"]["quantity"]
 
+        nutrient_analysis_rda = ""
+        nutrient_analysis = ""
+        nutritional_level = ""
+        processing_level = ""
+        harmful_ingredient_analysis = ""
+        claims_analysis = ""
+        
         if nutritional_information:
             product_type, calories, sugar, salt, serving_size = find_product_nutrients(product_info_from_db)
             nutrient_analysis = analyze_nutrients(product_type, calories, sugar, salt, serving_size)
@@ -581,20 +588,54 @@ def analyze_product(product_info_raw):
             print(f"DEBUG : nutrient_analysis_rda_data['nutritionPerServing'] : {nutrient_analysis_rda_data['nutritionPerServing']}")
             print(f"DEBUG : nutrient_analysis_rda_data['userServingSize'] : {nutrient_analysis_rda_data['userServingSize']}")
 
-            nutrient_analysis_rda = find_nutrition(nutrient_analysis_rda_data)
+            if nutrient_analysis_rda_data:
+                nutrient_analysis_rda = find_nutrition(nutrient_analysis_rda_data)
             print(f"DEBUG ! RDA nutrient analysis is {nutrient_analysis_rda}")
             #Call GPT for nutrient analysis
             nutritional_level = analyze_nutrition_icmr_rda(nutrient_analysis, nutrient_analysis_rda)
-        
+            
         if len(ingredients_list) > 0:    
             processing_level = analyze_processing_level(ingredients_list, assistant1.id) if ingredients_list else ""
             harmful_ingredient_analysis = analyze_harmful_ingredients(ingredients_list, assistant2.id) if ingredients_list else ""
-        
+            
         if len(claims_list) > 0:                    
             claims_analysis = analyze_claims(claims_list, ingredients_list, assistant3.id) if claims_list else ""
-                
+        
         final_analysis = generate_final_analysis(brand_name, product_name, nutritional_level, processing_level, harmful_ingredient_analysis, claims_analysis)
-        return final_analysis
+        if debug_mode:
+            debug_information = f"""
+            ----- Section 1 -----
+            
+            Product Name : 
+            {brand_name} {product_name}
+
+            Ingredient List : 
+            {", ".join(ingredients_list)}
+
+            Are Salt/Sugar/Calories above ICMR limit? : 
+            {nutrient_analysis}
+
+            Are nutrients below RDA limit?
+            {nutrient_analysis_rda}
+                
+            Nutrient Analysis : 
+            {nutritional_level}
+            
+            Processing Level : 
+            {processing_level}
+            
+            Ingredient Analysis : 
+            {harmful_ingredient_analysis}
+            
+            Claims Analysis : 
+            {claims_analysis}
+
+            ----- Section 2 -----
+            
+            """
+            return debug_information + final_analysis
+        else:
+            return final_analysis
     else:
         return "I'm sorry, product information could not be extracted from the url."    
 
