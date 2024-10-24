@@ -603,36 +603,34 @@ def analyze_product(product_info_raw):
         
         final_analysis = generate_final_analysis(brand_name, product_name, nutritional_level, processing_level, harmful_ingredient_analysis, claims_analysis)
         if debug_mode:
-            debug_information = f"""
-            ----- Section 1 -----
+            debug_information = """
+            **Section 1**
             
-            Product Name : 
-            {brand_name} {product_name}
+Product Name: {brand_name} {product_name}
 
-            Ingredient List : 
-            {", ".join(ingredients_list)}
+Ingredient List: 
+{", ".join(ingredients_list)}
 
-            Are Salt/Sugar/Calories above ICMR limit? : 
-            {nutrient_analysis}
+Salt/Sugar/Calories Exceed ICMR Limit?: 
+{nutrient_analysis}
 
-            Are nutrients below RDA limit?
-            {nutrient_analysis_rda}
-                
-            Nutrient Analysis : 
-            {nutritional_level}
-            
-            Processing Level : 
-            {processing_level}
-            
-            Ingredient Analysis : 
-            {harmful_ingredient_analysis}
-            
-            Claims Analysis : 
-            {claims_analysis}
+Nutrients Below RDA Limit?: 
+{nutrient_analysis_rda}
 
-            ----- Section 2 -----
-            
-            """
+Nutrient Analysis: 
+{nutritional_level}
+
+Processing Level: 
+{processing_level}
+
+Ingredient Analysis: 
+{harmful_ingredient_analysis}
+
+Claims Analysis: 
+{claims_analysis}
+
+            **Section 2**
+"""
             return debug_information + final_analysis
         else:
             return final_analysis
