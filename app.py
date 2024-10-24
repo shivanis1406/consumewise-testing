@@ -479,12 +479,12 @@ The output must be in JSON format as follows:
 
 def generate_final_analysis(brand_name, product_name, nutritional_level, processing_level, harmful_ingredient_analysis, claims_analysis):
     global debug_mode, client
-    system_prompt = """You are provided with a detailed analysis of a food product. Your task is to generate actionable insights to help the user decide whether to consume the product, at what frequency, and identify any potential harms or benefits. 
-Consider the context of consumption to ensure the advice is personalized and practical. 
+    system_prompt = """You are provided with a detailed analysis of a food product. Your task is to well-rounded analysis & generate actionable & practical recommendations for the user. 
+Ensure the advice is personalised and practical. 
 
 Use the following criteria to generate your response: 
 1.⁠ ⁠Nutrition Analysis: 
---How much do sugar, calories, or salt exceed the threshold limit?
+--How much do sugar, calories, or salt exceed the ICMR threshold limit?
 •⁠  ⁠How much of the Recommended Dietary Allowance (RDA) does the product provide for each nutrient?
 •⁠  ⁠How processed is the product?
 2.⁠ ⁠Harmful Ingredients: 
@@ -492,37 +492,40 @@ Use the following criteria to generate your response:
 3.⁠ ⁠Misleading Claims: 
 •⁠  ⁠Are there any misleading claims made by the brand? 
 
-""""""""""""""""While generating your actionable insight, think in the following manner:"""""""""""""""" 
+After doing these analysis. before generating your actionable recommendation, form the whole consumption context of the product in the user's life.  
+1. What is the consumption proportion of that product in the user's life - is it a whole meal or a snack, is it being cooked further possibly leading to addition of other nutrients, is it had at is? How much hunger does it satiate ? 
 
-Consumption Context:   What is the function of that product in the user's life - caffine? sugar rush? part of a meal? for protein intake? 
-For example- diet coke may be being had for caffeine, so without stating the obvious, caffeine is bad, but if you really need it consider the other adverse effects of this as well! 
-While doing your analysis, consider these things:
-•⁠  ⁠Is the product being consumed for health reasons or as a treat? 
-•⁠  ⁠Could the consumer be overlooking hidden harms? Use the misleading claims criteria here and check if the consumer is having it thinking its healthier. 
-•⁠  ⁠If the product is something they could consume daily, should they? 
-•⁠  ⁠If they are consuming it daily, what potential harm are they not noticing? 
-•⁠  ⁠If the product is intended for health purposes, are there concerns the user might miss? 
-- You could also consider things like how active they are generally or otherwise how well balanced is their meal intake while providing your insight. 
+2. Discern the particular functionality of that product - is it the carb source in the meal, is it for caffeine, is it a travel essential, is it being had for protein? 
+
+3. What is the perceived health benefit of that product?  Is the product being consumed for health reasons or as a treat? 
+
+4. At what potential frequency would the user be having it? 
+
+5. Could the consumer be overlooking hidden harms? Use the misleading claims criteria here and check if the consumer is having it thinking its healthier.  ⁠If the product is something they could consume daily, should they? ⁠If they are consuming it daily, what potential harm are they not noticing? ⁠If the product is intended for health purposes, are there concerns the user might miss? 
 
 
-Output: 
-•⁠  ⁠Recommend whether the product should be consumed or avoided. Specify by how much  do sugar, calories, or salt exceed the threshold limit?
--Recommend whether the product is suitable for regular consumption or should be limited, considering healthier choices when applicable.
-•⁠  ⁠Whether its had as a daily nutritional meal, is it a snack, travel snack, hyper health reason like increased protein intake. 
-You also provide the recommendation considering other lifestyle habbits - how well rounded are their meal, how active they are, 
-•⁠  ⁠Highlight any risks or benefits at that level of consumption. 
+Final Recommendation Output:
+Provide either of these potential practical recommendations, whatever seems most suited to the product's functionality & the analysis done above. 
+1. Recommend whether the product is suitable for regular consumption or should be limited, considering healthier choices when applicable.
+2. You also provide the recommendation considering other lifestyle habits - how well rounded are their meals, how active they are.
+3. Recommend ideal frequency 
+ 4. Recommend functionality & meal type
+5. Recommend how could they be balancing this with other meals or a particular kind of lifestyle 
+6. How could they enhance this meal
+7. You could also mention if a particular product could be seemed to be having for an instant sugar fix or a caffeine hit - that if you're doing it for this, once in a while it is okay. 
+Be very practical yet empathetic. Think like an expert nutritionist and produce a well-rounded answer considering both good and bad and the consumption content. 
 
 Keep the output very short, concise & factual. 
 
 Follow this format: 
-1.⁠ ⁠Recommendation: This will be the practical actionable insight you provide  highlighting the most relevant point on which your analysis is based or the highest risk or benefit. 
+1.⁠ ⁠Recommendation: This will be the practical actionable recommendation  you provide  highlighting the most relevant point on which your analysis is based or the highest risk or benefit. 
 
-2. Why - Here you provide the reasoning behind your take - the risks or benefits you noticed basis which you have given your recommendation. 
+2.⁠ ⁠Why - Here you provide the reasoning behind your take - the risks or benefits you noticed basis which you have given your recommendation. 
 2.⁠ ⁠Risk Analysis: 
-1. Nutrition: Provide the contextual nutrition analysis based on user's input
-2: Ingredients Analysis : Describe the benefits (if any) and harms (if any) of all the ingredients with a detailed explanation
-3. Processing Level - Explain how processed is the food product 
-4. Claims (if any): Is the claim valid or misleading giving detailed explanation
+1.⁠ ⁠Nutrition: Do social math to contextualise the information. . Specify by how much do sugar, calories, or salt exceed the ICMR threshold limit? Contextualise the recommended daily allowance (RDA) information for the user-  provide information in teaspoons of sugar and salt or calories /fat equivalent to number of nutritious meals v/s the nutrition gained or the hunger satiated. Be very consistent with this.
+2: Ingredients Analysis : Highlight the ingredients and mention the names of the specific ingredients on which your analysis was based and specify their harm or benefit. Also provide citations. 
+3.⁠ ⁠Processing Level - Explain how processed is the food product 
+4.⁠ ⁠Claims (if any): Is the claim valid or misleading giving detailed explanation
 
 
 Be very short, concise and precise and scientific. Give actable insights & recommendations."""
@@ -553,7 +556,7 @@ Claims Analysis:
         ]
     )
 
-    return completion.choices[0].message.content
+    return f"{brand_name} {product_name} -- " + completion.choices[0].message.content
 
 
 def analyze_product(product_info_raw):
