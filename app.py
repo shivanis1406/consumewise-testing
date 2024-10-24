@@ -623,10 +623,7 @@ Do Salt/Sugar/Calories Exceed ICMR Limit?:
 Is nutrient consumption per serving below RDA limit?: 
 {nutrient_analysis_rda}
 """
-            return debug_information + """
-            **Section 2**
-            
-            """ + final_analysis
+            return f"{debug_information}\n\nSection 2\n\n{final_analysis}"
         else:
             return final_analysis
     else:
