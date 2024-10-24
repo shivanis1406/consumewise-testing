@@ -556,7 +556,12 @@ Claims Analysis:
         ]
     )
 
-    return f"{brand_name} {product_name} -- " + completion.choices[0].message.content
+    return f"""
+    Brand : {brand_name}
+    Product : {product_name}
+    
+    {completion.choices[0].message.content}
+    """
 
 
 def analyze_product(product_info_raw):
@@ -606,7 +611,8 @@ def analyze_product(product_info_raw):
             debug_information = f"""
             **Section 1**
             
-Product Name: {brand_name} {product_name}
+Brand Name: {brand_name}
+Product Name: {product_name}
 
 Ingredient List: 
 {", ".join(ingredients_list)}
